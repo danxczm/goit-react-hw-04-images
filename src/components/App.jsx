@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 
 import { fetchData } from 'API/fetchData';
 import { Loader } from 'components/Loader/Loader.jsx';
@@ -7,125 +7,91 @@ import { Modal } from 'components/Modal/Modal';
 import { Searchbar } from './Searchbar/Searchbar.jsx';
 import { ImageGallery } from './ImageGallery/ImageGallery.jsx';
 
-export class App extends Component {
-  state = {
-    pictures: [],
-    largePictureOpened: null,
-    tags: '',
-    page: null,
-    searchQuery: '',
-    showModal: false,
-    status: '',
-    totalHits: null,
-    error: null,
+export function App() {
+  const [pictures, setPictures] = useState([]);
+  const [largePictureOpened, setLargePictureOpened] = useState(null);
+  const [tags, setTags] = useState('');
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [status, setStatus] = useState('');
+  const [totalHits, setTotalHits] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!searchQuery) return;
+
+    setStatus('pending');
+
+    fetchData(searchQuery, page)
+      .then(data => {
+        if (data.data.hits.length === 0)
+          throw new Error(`There are no pictures with ${searchQuery} tag`);
+        else {
+          setPictures(prevPictures => [...prevPictures, ...data.data.hits]);
+          setTotalHits(data.data.totalHits);
+          setStatus('resolved');
+        }
+      })
+      .catch(error => {
+        setError(error);
+        setStatus('rejected');
+      });
+  }, [page, searchQuery]);
+
+  const loadMoreHandler = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  componentDidUpdate(_, prevState) {
-    const { page, searchQuery } = this.state;
-
-    if (prevState.searchQuery !== searchQuery) {
-      this.setState({ status: 'pending', pictures: [], page: 1 });
-
-      return fetchData(searchQuery, page)
-        .then(data => {
-          if (data.data.hits.length === 0)
-            throw new Error(`There are no pictures with ${searchQuery} tag`);
-          else
-            this.setState({
-              pictures: data.data.hits,
-              totalHits: data.data.totalHits,
-              status: 'resolved',
-            });
-        })
-        .catch(error => this.setState({ error, status: 'rejected' }));
-    }
-  }
-
-  loadMoreHandler = () => {
-    const { page, searchQuery } = this.state;
-
-    this.setState(
-      prevState => ({
-        page: prevState.page + 1,
-      }),
-      () => {
-        fetchData(searchQuery, page)
-          .then(data => {
-            this.setState(prevState => ({
-              pictures: [...prevState.pictures, ...data.data.hits],
-            }));
-          })
-          .catch(error => this.setState({ error, status: 'rejected' }));
-      }
-    );
+  const handleFormSubmit = searchQuery => {
+    setSearchQuery(searchQuery);
   };
 
-  handleFormSubmit = searchQuery => {
-    this.setState({ searchQuery });
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
 
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-    }));
+  const onPictureClick = (largePictureOpened, tags) => {
+    setLargePictureOpened(largePictureOpened);
+    setTags(tags);
+    toggleModal();
   };
 
-  onPictureClick = (largePictureOpened, tags) => {
-    this.setState({ largePictureOpened, tags });
-    this.toggleModal();
-  };
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gridGap: '16px',
+        paddingBottom: '24px',
+      }}
+    >
+      <Searchbar onSubmit={handleFormSubmit} />
 
-  render() {
-    const {
-      pictures,
-      totalHits,
-      error,
-      status,
-      showModal,
-      largePictureOpened,
-      tags,
-      searchQuery,
-    } = this.state;
+      {status === 'pending' && <Loader />}
 
-    return (
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gridGap: '16px',
-          paddingBottom: '24px',
-        }}
-      >
-        <Searchbar onSubmit={this.handleFormSubmit} />
-
-        {status === 'pending' && <Loader />}
-
-        {status === 'rejected' && (
-          <h1 style={{ display: 'flex', justifyContent: 'center' }}>
-            {error.message}
-          </h1>
-        )}
-        {status === 'resolved' && (
-          <div>
-            {searchQuery && (
-              <ImageGallery
-                pictures={pictures}
-                onPictureClick={this.onPictureClick}
-              />
-            )}
-            {showModal && (
-              <Modal
-                onModalClose={this.toggleModal}
-                largePictureOpened={largePictureOpened}
-                tags={tags}
-              />
-            )}
-            {pictures.length > 0 && pictures.length < totalHits && (
-              <Button onClick={this.loadMoreHandler} />
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
+      {status === 'rejected' && (
+        <h1 style={{ display: 'flex', justifyContent: 'center' }}>
+          {error.message}
+        </h1>
+      )}
+      {status === 'resolved' && (
+        <div>
+          {searchQuery && (
+            <ImageGallery pictures={pictures} onPictureClick={onPictureClick} />
+          )}
+          {showModal && (
+            <Modal
+              onModalClose={toggleModal}
+              largePictureOpened={largePictureOpened}
+              tags={tags}
+            />
+          )}
+          {pictures.length > 0 && pictures.length < totalHits && (
+            <Button onClick={loadMoreHandler} />
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
