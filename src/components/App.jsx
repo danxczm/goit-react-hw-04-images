@@ -45,6 +45,8 @@ export function App() {
 
   const handleFormSubmit = searchQuery => {
     setSearchQuery(searchQuery);
+    setPage(1);
+    setPictures([]);
   };
 
   const toggleModal = () => {
@@ -67,30 +69,26 @@ export function App() {
       }}
     >
       <Searchbar onSubmit={handleFormSubmit} />
-
-      {status === 'pending' && <Loader />}
-
       {status === 'rejected' && (
         <h1 style={{ display: 'flex', justifyContent: 'center' }}>
           {error.message}
         </h1>
       )}
-      {status === 'resolved' && (
-        <div>
-          {searchQuery && (
-            <ImageGallery pictures={pictures} onPictureClick={onPictureClick} />
-          )}
-          {showModal && (
-            <Modal
-              onModalClose={toggleModal}
-              largePictureOpened={largePictureOpened}
-              tags={tags}
-            />
-          )}
-          {pictures.length > 0 && pictures.length < totalHits && (
-            <Button onClick={loadMoreHandler} />
-          )}
-        </div>
+      {status === 'pending' && <Loader />}
+      {/* {status === 'resolved' && } */}
+
+      {searchQuery && (
+        <ImageGallery pictures={pictures} onPictureClick={onPictureClick} />
+      )}
+      {showModal && (
+        <Modal
+          onModalClose={toggleModal}
+          largePictureOpened={largePictureOpened}
+          tags={tags}
+        />
+      )}
+      {pictures.length > 0 && pictures.length < totalHits && (
+        <Button onClick={loadMoreHandler} />
       )}
     </div>
   );
